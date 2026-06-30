@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -47,6 +47,14 @@
     .daily .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
     .daily .col .b{width:100%;background:var(--blue);border-radius:4px 4px 0 0;min-height:2px}
     .daily .col .d{font-size:10px;color:var(--muted)}
+    .insight{background:linear-gradient(180deg,#1b1410,#171a21);border:1px solid #3a2a20}
+    .insight .tag{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);border:1px solid #3a2a20;border-radius:6px;padding:2px 9px;margin-bottom:12px}
+    .insight h2{color:var(--accent);margin-bottom:12px}
+    .insight p{font-size:14px;line-height:1.62;color:var(--txt);margin-bottom:14px}
+    .insight ul{margin:0 0 6px 18px}
+    .insight li{font-size:13.5px;line-height:1.55;color:var(--muted);margin-bottom:9px}
+    .insight li b{color:var(--txt)}
+    .insight .kicker{font-size:13px;color:var(--muted);font-style:italic;border-left:3px solid var(--accent);padding-left:10px;margin-bottom:0}
   </style>
 </head>
 <body>
@@ -54,9 +62,9 @@
     <header>
       <div>
         <h1>TerraStrike <span>Quiz</span> &middot; Dashboard</h1>
-        <div class="updated" id="updated">Caricamento...</div>
+        <div class="updated" id="updated">Loading...</div>
       </div>
-      <button id="refresh">&#8635; Aggiorna</button>
+      <button id="refresh">&#8635; Refresh</button>
     </header>
 
     <div class="err" id="err"></div>
@@ -64,44 +72,57 @@
     <div class="kpis" id="kpis"></div>
 
     <section>
-      <h2>Funnel del quiz</h2>
-      <div class="hint">Quante persone arrivano a ogni step e dove abbandonano. Le pagine-stato contano come un solo step.</div>
+      <h2>Quiz funnel</h2>
+      <div class="hint">How many people reach each step and where they drop off. State pages count as a single step.</div>
       <div id="funnel"><div class="empty">...</div></div>
     </section>
 
     <div class="grid2">
       <section>
-        <h2>Stati piu' frequenti</h2>
-        <div class="hint">Da dove arrivano i tuoi visitatori.</div>
+        <h2>Top states</h2>
+        <div class="hint">Where your visitors are coming from.</div>
         <div id="states"><div class="empty">...</div></div>
       </section>
       <section>
-        <h2>Segmenti (chi devono proteggere)</h2>
-        <div class="hint">Calcolato dalla 1a domanda &middot; guida la scelta del pacchetto.</div>
+        <h2>Segments (who they protect)</h2>
+        <div class="hint">Derived from question 1 &middot; drives the package they're shown.</div>
         <div id="segments"><div class="empty">...</div></div>
       </section>
     </div>
 
     <section>
-      <h2>Risposte date (per domanda)</h2>
-      <div class="hint">Cosa risponde davvero la gente: ottimo per ricalibrare copy e offerta.</div>
+      <h2>Answers given (per question)</h2>
+      <div class="hint">What people actually answer &mdash; gold for recalibrating copy and offer.</div>
       <div id="answers"><div class="empty">...</div></div>
     </section>
 
     <div class="grid2">
       <section>
-        <h2>Mail raccolte per stato</h2>
-        <div class="hint">Per le allerte di zona e i restock (A/B email).</div>
+        <h2>Emails captured by state</h2>
+        <div class="hint">For local alerts and restocks (A/B email).</div>
         <div id="leads"><div class="empty">...</div></div>
       </section>
       <section>
-        <h2>Ultimi 14 giorni</h2>
-        <div class="hint">Sessioni quiz al giorno.</div>
+        <h2>Last 14 days</h2>
+        <div class="hint">Quiz sessions per day.</div>
         <div class="daily" id="daily"></div>
       </section>
     </div>
 
-    <div class="footnote">Dati aggregati in tempo reale. Le email dei singoli utenti NON sono mostrate qui (restano private su Supabase).</div>
+    <section class="insight">
+      <span class="tag">Marketing read</span>
+      <h2>What this data is really telling you about our buyer</h2>
+      <p>Every chart above is a window into one person: the preparedness-minded woman, 65+, who buys TerraStrike not for herself but for the people she's terrified of losing &mdash; a child, a grandchild, anyone she pictures trapped in a car that won't open. (The 30&ndash;50 "protective mom" is who we <i>want</i>; the data shows who actually shows up.) She isn't buying a glass breaker. She's buying the feeling of being the one who was ready.</p>
+      <ul>
+        <li><b>Segments = identity, not size.</b> "Who they protect" (solo &rarr; x2, family &rarr; x8) is the single most important answer in the quiz. It's an identity label, not a quantity: she's claiming a role &mdash; <i>protector of the family</i>. Mirror that role back at checkout and in email; don't just show a bigger bundle.</li>
+        <li><b>Where the funnel bleeds = a belief you haven't fixed yet.</b> The #1 barrier for this product is confusion &mdash; "what even is this keychain?" A big early drop-off isn't a UX bug; it's people who never <i>felt</i> the stakes (trapped in water, fire, electronic / Tesla doors) before being asked to decide. Raise the emotion first, then ask.</li>
+        <li><b>Top states aren't geography &mdash; they're which fear to lead with.</b> Flood / water states and high-accident states want different opening images. Localize the danger: "risk by state" earns the click because it feels like it's about <i>her</i> road.</li>
+        <li><b>The answer distribution is your amygdala heat-map.</b> The answers chosen most are the angles that fire hardest on cold traffic. Promote those in ads &mdash; the depth of the emotion you tap is the number-one predictor of how this funnel converts.</li>
+      </ul>
+      <p class="kicker">Rule of thumb: read the biggest drop-off bar as a question &mdash; <i>what does she need to believe here that she doesn't yet?</i> &mdash; and write the next ad to that, not to the product.</p>
+    </section>
+
+    <div class="footnote">Aggregated data, real time. Individual user emails are NOT shown here (they stay private on Supabase).</div>
   </div>
 
   <script>
@@ -118,7 +139,7 @@
     function esc(s){ return String(s == null ? "" : s).replace(/[<>&]/g, function(c){ return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]; }); }
 
     function bars(rows, labelKey, valKey, color){
-      if(!rows || !rows.length) return '<div class="empty">Nessun dato ancora.</div>';
+      if(!rows || !rows.length) return '<div class="empty">No data yet.</div>';
       var max = rows.reduce(function(m,r){ return Math.max(m, +r[valKey]||0); }, 0) || 1;
       return rows.map(function(r){
         var v = +r[valKey] || 0;
@@ -131,9 +152,9 @@
       o = o || {};
       var compRate = o.sessioni ? Math.round(100 * o.completati / o.sessioni) : 0;
       var cards = [
-        { label:"Sessioni quiz", value:o.sessioni||0, sub:(o.sessioni_7g||0)+" negli ultimi 7g" },
-        { label:"Completamento", value:compRate+"%", sub:(o.completati||0)+" arrivati al checkout" },
-        { label:"Mail raccolte", value:o.mail_raccolte||0, sub:(o.mail_7g||0)+" negli ultimi 7g" }
+        { label:"Quiz sessions", value:o.sessioni||0, sub:(o.sessioni_7g||0)+" in the last 7d" },
+        { label:"Completion", value:compRate+"%", sub:(o.completati||0)+" reached checkout" },
+        { label:"Emails captured", value:o.mail_raccolte||0, sub:(o.mail_7g||0)+" in the last 7d" }
       ];
       document.getElementById("kpis").innerHTML = cards.map(function(c){
         return '<div class="kpi"><div class="label">'+c.label+'</div><div class="value">'+c.value+'</div><div class="sub">'+c.sub+'</div></div>';
@@ -142,7 +163,7 @@
 
     function renderFunnel(rows){
       var el = document.getElementById("funnel");
-      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">Nessun dato ancora.</div>'; return; }
+      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
       var max = rows.reduce(function(m,r){ return Math.max(m, +r.persone||0); }, 0) || 1;
       el.innerHTML = rows.map(function(r){
         var v = +r.persone||0;
@@ -154,7 +175,7 @@
 
     function renderAnswers(rows){
       var el = document.getElementById("answers");
-      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">Nessun dato ancora.</div>'; return; }
+      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
       var groups = {}, order = [];
       rows.forEach(function(r){
         var k = r.step_key || "?";
@@ -169,12 +190,12 @@
 
     function renderDaily(rows){
       var el = document.getElementById("daily");
-      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">Nessun dato.</div>'; return; }
+      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">No data.</div>'; return; }
       var max = rows.reduce(function(m,r){ return Math.max(m, +r.sessioni||0); }, 0) || 1;
       el.innerHTML = rows.map(function(r){
         var h = Math.round(100 * (+r.sessioni||0) / max);
         var dd = String(r.giorno).slice(8,10);
-        return '<div class="col" title="'+esc(r.giorno)+': '+(r.sessioni||0)+' sessioni, '+(r.mail||0)+' mail">'
+        return '<div class="col" title="'+esc(r.giorno)+': '+(r.sessioni||0)+' sessions, '+(r.mail||0)+' emails">'
              + '<div class="b" style="height:'+h+'%"></div><div class="d">'+dd+'</div></div>';
       }).join("");
     }
@@ -197,12 +218,12 @@
         document.getElementById("segments").innerHTML = bars(res[4], "segmento", "persone", "green");
         document.getElementById("leads").innerHTML    = bars(res[5], "stato", "mail", "green");
         renderDaily(res[6]);
-        document.getElementById("updated").textContent = "Aggiornato: " + new Date().toLocaleString("it-IT");
+        document.getElementById("updated").textContent = "Updated: " + new Date().toLocaleString("en-US");
       }).catch(function(e){
         var err = document.getElementById("err");
         err.style.display = "block";
-        err.textContent = "Errore nel caricamento dati: " + e.message + ". Hai eseguito 08-dashboard-views.sql su Supabase?";
-        document.getElementById("updated").textContent = "Errore";
+        err.textContent = "Error loading data: " + e.message + ". Did you run 09-setup-dashboard-COMPLETO.sql on Supabase?";
+        document.getElementById("updated").textContent = "Error";
       });
     }
 
