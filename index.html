@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TerraStrike Quiz - Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+      --txt:#e8eaed; --muted:#9aa3b2; --accent:#dc3200; --green:#16a34a; --blue:#3b82f6;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"DM Sans",system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt);padding:24px;min-height:100vh}
+    .wrap{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+    h1{font-size:22px;font-weight:700}
+    h1 span{color:var(--accent)}
+    .updated{font-size:13px;color:var(--muted)}
+    button{font-family:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer}
+    button:hover{border-color:var(--accent)}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+    .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+    .kpi .value{font-size:30px;font-weight:700;line-height:1}
+    .kpi .sub{font-size:12px;color:var(--muted);margin-top:6px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+    section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
+    section h2{font-size:15px;font-weight:700;margin-bottom:4px}
+    section .hint{font-size:12px;color:var(--muted);margin-bottom:14px}
+    .row{margin-bottom:11px}
+    .row .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;gap:10px}
+    .row .top .n{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+    .bar{height:9px;background:var(--panel2);border-radius:99px;overflow:hidden}
+    .bar > i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+    .bar.green > i{background:var(--green)}
+    .bar.blue > i{background:var(--blue)}
+    .qgroup{margin-bottom:18px}
+    .qgroup:last-child{margin-bottom:0}
+    .qgroup .qtitle{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px;border-left:3px solid var(--accent);padding-left:8px}
+    .drop{font-size:12px;color:#f59e0b;font-weight:600}
+    .empty{color:var(--muted);font-size:14px;padding:8px 0}
+    .err{background:#3a1d1d;border:1px solid #5b2a2a;color:#fca5a5;border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px;display:none}
+    .footnote{font-size:12px;color:var(--muted);margin-top:8px}
+    .daily{display:flex;align-items:flex-end;gap:6px;height:120px}
+    .daily .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+    .daily .col .b{width:100%;background:var(--blue);border-radius:4px 4px 0 0;min-height:2px}
+    .daily .col .d{font-size:10px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>TerraStrike <span>Quiz</span> &middot; Dashboard</h1>
+        <div class="updated" id="updated">Caricamento...</div>
+      </div>
+      <button id="refresh">&#8635; Aggiorna</button>
+    </header>
+
+    <div class="err" id="err"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <section>
+      <h2>Funnel del quiz</h2>
+      <div class="hint">Quante persone arrivano a ogni step e dove abbandonano. Le pagine-stato contano come un solo step.</div>
+      <div id="funnel"><div class="empty">...</div></div>
+    </section>
+
+    <div class="grid2">
+      <section>
+        <h2>Stati piu' frequenti</h2>
+        <div class="hint">Da dove arrivano i tuoi visitatori.</div>
+        <div id="states"><div class="empty">...</div></div>
+      </section>
+      <section>
+        <h2>Segmenti (chi devono proteggere)</h2>
+        <div class="hint">Calcolato dalla 1a domanda &middot; guida la scelta del pacchetto.</div>
+        <div id="segments"><div class="empty">...</div></div>
+      </section>
+    </div>
+
+    <section>
+      <h2>Risposte date (per domanda)</h2>
+      <div class="hint">Cosa risponde davvero la gente: ottimo per ricalibrare copy e offerta.</div>
+      <div id="answers"><div class="empty">...</div></div>
+    </section>
+
+    <div class="grid2">
+      <section>
+        <h2>Mail raccolte per stato</h2>
+        <div class="hint">Per le allerte di zona e i restock (A/B email).</div>
+        <div id="leads"><div class="empty">...</div></div>
+      </section>
+      <section>
+        <h2>Ultimi 14 giorni</h2>
+        <div class="hint">Sessioni quiz al giorno.</div>
+        <div class="daily" id="daily"></div>
+      </section>
+    </div>
+
+    <div class="footnote">Dati aggregati in tempo reale. Le email dei singoli utenti NON sono mostrate qui (restano private su Supabase).</div>
+  </div>
+
+  <script>
+    // ====== CONFIG ======
+    var SUPABASE_URL = "https://ytzuiysqainppdzebhbg.supabase.co";
+    var SUPABASE_KEY = "sb_publishable_cRBas37A9sr74hNAl1KFNA_1btrrtTP"; // publishable, sola lettura aggregati
+    var H = { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY };
+
+    function api(view, qs){
+      return fetch(SUPABASE_URL + "/rest/v1/" + view + "?select=*" + (qs ? "&" + qs : ""), { headers: H })
+        .then(function(r){ if(!r.ok) throw new Error(view + " -> " + r.status); return r.json(); });
+    }
+    function pct(n, max){ max = max || 1; return Math.max(2, Math.round(100 * n / max)); }
+    function esc(s){ return String(s == null ? "" : s).replace(/[<>&]/g, function(c){ return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]; }); }
+
+    function bars(rows, labelKey, valKey, color){
+      if(!rows || !rows.length) return '<div class="empty">Nessun dato ancora.</div>';
+      var max = rows.reduce(function(m,r){ return Math.max(m, +r[valKey]||0); }, 0) || 1;
+      return rows.map(function(r){
+        var v = +r[valKey] || 0;
+        return '<div class="row"><div class="top"><span>'+esc(r[labelKey])+'</span><span class="n">'+v+'</span></div>'
+             + '<div class="bar '+(color||'')+'"><i style="width:'+pct(v,max)+'%"></i></div></div>';
+      }).join("");
+    }
+
+    function renderKpis(o){
+      o = o || {};
+      var compRate = o.sessioni ? Math.round(100 * o.completati / o.sessioni) : 0;
+      var cards = [
+        { label:"Sessioni quiz", value:o.sessioni||0, sub:(o.sessioni_7g||0)+" negli ultimi 7g" },
+        { label:"Completamento", value:compRate+"%", sub:(o.completati||0)+" arrivati al checkout" },
+        { label:"Mail raccolte", value:o.mail_raccolte||0, sub:(o.mail_7g||0)+" negli ultimi 7g" }
+      ];
+      document.getElementById("kpis").innerHTML = cards.map(function(c){
+        return '<div class="kpi"><div class="label">'+c.label+'</div><div class="value">'+c.value+'</div><div class="sub">'+c.sub+'</div></div>';
+      }).join("");
+    }
+
+    function renderFunnel(rows){
+      var el = document.getElementById("funnel");
+      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">Nessun dato ancora.</div>'; return; }
+      var max = rows.reduce(function(m,r){ return Math.max(m, +r.persone||0); }, 0) || 1;
+      el.innerHTML = rows.map(function(r){
+        var v = +r.persone||0;
+        var drop = (r.drop_pct != null) ? ' <span class="drop">-'+r.drop_pct+'%</span>' : '';
+        return '<div class="row"><div class="top"><span>'+esc(r.step_label || r.step_key)+drop+'</span><span class="n">'+v+'</span></div>'
+             + '<div class="bar"><i style="width:'+pct(v,max)+'%"></i></div></div>';
+      }).join("");
+    }
+
+    function renderAnswers(rows){
+      var el = document.getElementById("answers");
+      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">Nessun dato ancora.</div>'; return; }
+      var groups = {}, order = [];
+      rows.forEach(function(r){
+        var k = r.step_key || "?";
+        if(!groups[k]){ groups[k] = { label: r.step_label || k, rows: [] }; order.push(k); }
+        groups[k].rows.push(r);
+      });
+      el.innerHTML = order.map(function(k){
+        var g = groups[k];
+        return '<div class="qgroup"><div class="qtitle">'+esc(g.label)+'</div>'+bars(g.rows, "risposta", "scelte")+'</div>';
+      }).join("");
+    }
+
+    function renderDaily(rows){
+      var el = document.getElementById("daily");
+      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">Nessun dato.</div>'; return; }
+      var max = rows.reduce(function(m,r){ return Math.max(m, +r.sessioni||0); }, 0) || 1;
+      el.innerHTML = rows.map(function(r){
+        var h = Math.round(100 * (+r.sessioni||0) / max);
+        var dd = String(r.giorno).slice(8,10);
+        return '<div class="col" title="'+esc(r.giorno)+': '+(r.sessioni||0)+' sessioni, '+(r.mail||0)+' mail">'
+             + '<div class="b" style="height:'+h+'%"></div><div class="d">'+dd+'</div></div>';
+      }).join("");
+    }
+
+    function load(){
+      document.getElementById("err").style.display = "none";
+      Promise.all([
+        api("dash_overview"),
+        api("dash_steps", "order=ordine.asc"),
+        api("dash_answers"),
+        api("dash_states", "order=persone.desc&limit=15"),
+        api("dash_segments", "order=persone.desc"),
+        api("dash_leads_by_state", "order=mail.desc&limit=15"),
+        api("dash_daily", "order=giorno.asc")
+      ]).then(function(res){
+        renderKpis((res[0]||[])[0]);
+        renderFunnel(res[1]);
+        renderAnswers(res[2]);
+        document.getElementById("states").innerHTML   = bars(res[3], "stato", "persone", "blue");
+        document.getElementById("segments").innerHTML = bars(res[4], "segmento", "persone", "green");
+        document.getElementById("leads").innerHTML    = bars(res[5], "stato", "mail", "green");
+        renderDaily(res[6]);
+        document.getElementById("updated").textContent = "Aggiornato: " + new Date().toLocaleString("it-IT");
+      }).catch(function(e){
+        var err = document.getElementById("err");
+        err.style.display = "block";
+        err.textContent = "Errore nel caricamento dati: " + e.message + ". Hai eseguito 08-dashboard-views.sql su Supabase?";
+        document.getElementById("updated").textContent = "Errore";
+      });
+    }
+
+    document.getElementById("refresh").addEventListener("click", load);
+    load();
+  </script>
+</body>
+</html>
