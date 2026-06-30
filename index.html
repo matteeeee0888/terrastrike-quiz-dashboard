@@ -72,6 +72,8 @@
     .funnel .fpass .ok{color:#86efac;font-weight:600}
     .funnel .fpass .dp{color:var(--amber);font-weight:600}
     .funnel .fend .ftop .fcount b{color:#86efac}
+    .fnote{font-size:12px;color:var(--muted);margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+    .fnote code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11.5px}
 
     .insight{background:linear-gradient(180deg,#1b1410,#171a21);border:1px solid #3a2a20}
     .insight .tag{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);border:1px solid #3a2a20;border-radius:6px;padding:2px 9px;margin-bottom:12px}
@@ -173,6 +175,13 @@
     var SUPABASE_KEY = "sb_publishable_cRBas37A9sr74hNAl1KFNA_1btrrtTP"; // publishable, read-only on dash_* views
     var H = { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY };
 
+    // Noise filter for the funnel / answers: hides phantom steps created when a
+    // visitor's browser auto-translates the quiz (the tracker keys steps off the
+    // question text, so a translated page becomes a separate 1-person "step").
+    // A step is kept only if it has at least this many people.
+    var MIN_STEP_ABS  = 3;      // absolute floor
+    var MIN_STEP_FRAC = 0.02;   // ...or 2% of the busiest step, whichever is larger
+
     // active window: null/null = all time
     var state = { fromD: null, toD: null };
 
@@ -262,7 +271,8 @@
         var a = answers[k];
         var rows = Object.keys(a.rows).map(function(r){ return { risposta:r, scelte:a.rows[r] }; })
                      .sort(function(x,y){ return y.scelte - x.scelte; });
-        return { step_key:k, label:a.label, ord:a.ord, rows:rows };
+        var total = rows.reduce(function(s,r){ return s + r.scelte; }, 0);
+        return { step_key:k, label:a.label, ord:a.ord, total:total, rows:rows };
       }).sort(function(a,b){ return a.ord - b.ord; });
 
       // leads
@@ -309,6 +319,26 @@
       };
     }
 
+    // ---------- noise filter (shared by funnel + answers) ----------
+    // 1) collapse steps that sit at the SAME position (rounded step_pct) into the
+    //    dominant one by volume -> a browser-translated copy merges into its real step.
+    // 2) drop steps below the volume floor (phantom / near-empty variants).
+    function cleanSteps(items, getOrd, getVol){
+      var byPos = {};
+      items.forEach(function(it){
+        var o = getOrd(it);
+        var key = (o == null || isNaN(o)) ? ("k:" + (it.key || it.step_key)) : ("p:" + Math.round(o));
+        var cur = byPos[key];
+        if (!cur || getVol(it) > getVol(cur)) byPos[key] = it;
+      });
+      var merged = Object.keys(byPos).map(function(k){ return byPos[k]; })
+                     .sort(function(a,b){ return getOrd(a) - getOrd(b); });
+      var maxV = merged.reduce(function(m,it){ return Math.max(m, getVol(it)); }, 0) || 1;
+      var floor = Math.max(MIN_STEP_ABS, Math.ceil(maxV * MIN_STEP_FRAC));
+      var kept = merged.filter(function(it){ return getVol(it) >= floor; });
+      return { kept: kept, hidden: (items.length - kept.length), floor: floor };
+    }
+
     // ---------- renderers ----------
     function bars(rows, labelKey, valKey, color){
       if(!rows || !rows.length) return '<div class="empty">No data yet.</div>';
@@ -334,13 +364,14 @@
 
     function renderFunnel(stepArr, completati){
       var el = document.getElementById("funnel");
-      var nodes = stepArr.map(function(s){ return { label:s.label, persone:s.persone, end:false }; });
+      var c = cleanSteps(stepArr, function(s){ return s.ordine; }, function(s){ return s.persone; });
+      var nodes = c.kept.map(function(s){ return { label:s.label, persone:s.persone, end:false }; });
       nodes.push({ label:"Completed (checkout)", persone: completati||0, end:true });
       // base = people who reached the first question
       var base = nodes.length ? (nodes[0].persone || 0) : 0;
       if (!base) { el.innerHTML = '<div class="empty">No data yet for this window.</div>'; return; }
 
-      el.innerHTML = nodes.map(function(n, i){
+      var html = nodes.map(function(n, i){
         var ofStart = Math.round(100 * n.persone / base);
         var width = Math.max(2, Math.min(100, ofStart));
         var pass = "";
@@ -359,14 +390,26 @@
              +   '<div class="fbar"><i style="width:'+width+'%"></i></div>'
              + '</div>' + pass;
       }).join("");
+      if (c.hidden > 0) {
+        html += '<div class="fnote">' + c.hidden + ' low-signal step' + (c.hidden>1?'s':'')
+              + ' hidden (browser-translated copies or near-empty variants, under ' + c.floor + ' people). '
+              + 'Fix at the source by setting <code>window.QUIZ_STEP</code> on each quiz page.</div>';
+      }
+      el.innerHTML = html;
     }
 
     function renderAnswers(answersArr){
       var el = document.getElementById("answers");
-      if(!answersArr || !answersArr.length){ el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
-      el.innerHTML = answersArr.map(function(g){
+      var c = cleanSteps(answersArr, function(g){ return g.ord; }, function(g){ return g.total; });
+      if(!c.kept.length){ el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
+      var html = c.kept.map(function(g){
         return '<div class="qgroup"><div class="qtitle">'+esc(g.label)+'</div>'+bars(g.rows, "risposta", "scelte")+'</div>';
       }).join("");
+      if (c.hidden > 0) {
+        html += '<div class="fnote">' + c.hidden + ' low-signal question' + (c.hidden>1?'s':'')
+              + ' hidden (browser-translated copies / near-empty).</div>';
+      }
+      el.innerHTML = html;
     }
 
     function renderDaily(rows){
