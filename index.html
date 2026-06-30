@@ -53,10 +53,10 @@
     .empty{color:var(--muted);font-size:14px;padding:8px 0}
     .err{background:#3a1d1d;border:1px solid #5b2a2a;color:#fca5a5;border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px;display:none}
     .footnote{font-size:12px;color:var(--muted);margin-top:8px}
-    .daily{display:flex;align-items:flex-end;gap:4px;height:120px;overflow-x:auto}
-    .daily .col{flex:1 0 10px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
-    .daily .col .b{width:100%;background:var(--blue);border-radius:4px 4px 0 0;min-height:2px}
-    .daily .col .d{font-size:10px;color:var(--muted)}
+    .daily{display:flex;align-items:flex-end;gap:4px;height:120px;overflow-x:auto;border-bottom:1px solid var(--line);padding-bottom:2px}
+    .daily .col{flex:1 0 14px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+    .daily .col .b{width:100%;background:var(--blue);border-radius:4px 4px 0 0}
+    .daily .col .d{font-size:10px;color:var(--muted);white-space:nowrap}
 
     /* completion funnel */
     .funnel .fstep{margin-bottom:6px}
@@ -148,7 +148,7 @@
       </section>
       <section>
         <h2>Sessions per day</h2>
-        <div class="hint">New quiz sessions over the selected window.</div>
+        <div class="hint" id="dailyHint">New quiz sessions over the selected window.</div>
         <div class="daily" id="daily"></div>
       </section>
     </div>
@@ -198,24 +198,65 @@
       return r;
     }
 
-    // paginated fetch of an events view, filtered by created_at window
+    // Paginated fetch of an events view, filtered by created_at window.
+    // PostgREST caps each request at 1000 rows, so we page. We ask the first
+    // request for an exact count, then pull the remaining pages in PARALLEL
+    // (fast even with tens of thousands of rows). If the count header isn't
+    // exposed, we fall back to sequential paging so we never under-fetch.
+    var PAGE = 1000, CONC = 6, HARD_CAP = 500000;
+    window.__truncated = 0;
+
+    function pageUrl(base, off){ return base + "&order=created_at.asc&limit=" + PAGE + "&offset=" + off; }
+
     function fetchEvents(view){
       var r = rangeISO();
-      var base = SUPABASE_URL + "/rest/v1/" + view + "?select=*&order=created_at.asc";
+      var base = SUPABASE_URL + "/rest/v1/" + view + "?select=*";
       if (r.from) base += "&created_at=gte." + encodeURIComponent(r.from);
       if (r.to)   base += "&created_at=lte." + encodeURIComponent(r.to);
-      var out = [], offset = 0, PAGE = 1000;
-      function next(){
-        return fetch(base + "&limit=" + PAGE + "&offset=" + offset, { headers: H })
-          .then(function(res){ if(!res.ok) throw new Error(view + " -> " + res.status); return res.json(); })
-          .then(function(rows){
-            out = out.concat(rows);
-            offset += PAGE;
-            if (rows.length === PAGE && offset <= 200000) return next();
-            return out;
+
+      return fetch(pageUrl(base, 0), { headers: Object.assign({ Prefer: "count=exact" }, H) })
+        .then(function(res){
+          if(!res.ok) throw new Error(view + " -> " + res.status);
+          var cr = res.headers.get("content-range") || "";
+          var total = parseInt((cr.split("/")[1] || ""), 10);
+          return res.json().then(function(first){
+            if (first.length < PAGE) return first;          // single page, done
+
+            // count header missing -> safe sequential fallback
+            if (isNaN(total)) {
+              var out = first.slice(), off = PAGE;
+              function next(){
+                return fetch(pageUrl(base, off), { headers: H })
+                  .then(function(rr){ if(!rr.ok) throw new Error(view+" -> "+rr.status); return rr.json(); })
+                  .then(function(rows){
+                    for (var k=0;k<rows.length;k++) out.push(rows[k]);
+                    off += PAGE;
+                    if (rows.length === PAGE && off <= HARD_CAP) return next();
+                    if (rows.length === PAGE) window.__truncated = Math.max(window.__truncated, off);
+                    return out;
+                  });
+              }
+              return next();
+            }
+
+            // known count -> fetch remaining pages in parallel
+            var end = Math.min(total, HARD_CAP);
+            if (total > HARD_CAP) window.__truncated = Math.max(window.__truncated, total);
+            var offsets = [];
+            for (var o = PAGE; o < end; o += PAGE) offsets.push(o);
+            var all = first.slice(), idx = 0;
+            function worker(){
+              if (idx >= offsets.length) return Promise.resolve();
+              var o = offsets[idx++];
+              return fetch(pageUrl(base, o), { headers: H })
+                .then(function(rr){ if(!rr.ok) throw new Error(view+" -> "+rr.status); return rr.json(); })
+                .then(function(rows){ for (var k=0;k<rows.length;k++) all.push(rows[k]); return worker(); });
+            }
+            var workers = [];
+            for (var w = 0; w < Math.min(CONC, offsets.length); w++) workers.push(worker());
+            return Promise.all(workers).then(function(){ return all; });
           });
-      }
-      return next();
+        });
     }
 
     // ---------- aggregation (all client-side, respects the window) ----------
@@ -287,23 +328,44 @@
       var leadsArr = Object.keys(leadByState).map(function(k){ return { stato:k, mail: leadByState[k] }; })
                        .sort(function(a,b){ return b.mail - a.mail; });
 
-      // daily axis (selected window, or last 30d when "all")
+      // new sessions per day (counted on the session's FIRST-seen day)
+      var sessDay = {};
+      Object.keys(firstDay).forEach(function(sid){ var d = firstDay[sid]; sessDay[d] = (sessDay[d]||0)+1; });
+
+      // axis: selected window, or (all time) from the first day with data -> today
       var startD, endD;
       if (state.fromD && state.toD) { startD = state.fromD; endD = state.toD; }
       else {
-        var now = new Date();
-        endD = isoDay(now);
-        startD = isoDay(new Date(now.getTime() - 29*86400000));
+        var allDays = Object.keys(sessDay).sort();
+        endD = isoDay(new Date());
+        startD = allDays.length ? allDays[0] : isoDay(new Date(Date.now() - 29*86400000));
       }
-      var sessDay = {};
-      Object.keys(firstDay).forEach(function(sid){ var d = firstDay[sid]; sessDay[d] = (sessDay[d]||0)+1; });
+      var dStart = new Date(startD + "T00:00:00Z"), dEnd = new Date(endD + "T00:00:00Z");
+      var nDays = Math.round((dEnd - dStart) / 86400000) + 1;
+      // many days -> aggregate weekly (Mon-anchored) so the chart stays readable
+      var dailyMode = (nDays > 56) ? "week" : "day";
+
       var daily = [];
-      var cur = new Date(startD + "T00:00:00Z"), end = new Date(endD + "T00:00:00Z");
-      var guard = 0;
-      while (cur <= end && guard < 400) {
-        var d = isoDay(cur);
-        daily.push({ giorno:d, sessioni: sessDay[d]||0, mail: mailDay[d]||0 });
-        cur = new Date(cur.getTime() + 86400000); guard++;
+      if (dailyMode === "day") {
+        var cur = new Date(dStart), g = 0;
+        while (cur <= dEnd && g < 400) {
+          var d = isoDay(cur);
+          daily.push({ key:d, full:d, label:d.slice(8,10), sessioni: sessDay[d]||0, mail: mailDay[d]||0 });
+          cur = new Date(cur.getTime() + 86400000); g++;
+        }
+      } else {
+        var buckets = {}, order = [];
+        var cur = new Date(dStart), g = 0;
+        while (cur <= dEnd && g < 800) {
+          var d = isoDay(cur);
+          var dow = (cur.getUTCDay() + 6) % 7;                 // 0 = Monday
+          var wk = isoDay(new Date(cur.getTime() - dow*86400000));
+          if (!buckets[wk]) { buckets[wk] = { key:wk, full:wk, label:wk.slice(5), sessioni:0, mail:0 }; order.push(wk); }
+          buckets[wk].sessioni += sessDay[d]||0;
+          buckets[wk].mail     += mailDay[d]||0;
+          cur = new Date(cur.getTime() + 86400000); g++;
+        }
+        daily = order.map(function(k){ return buckets[k]; });
       }
 
       return {
@@ -315,7 +377,8 @@
         segments: segsArr,
         answers: answersArr,
         leads: leadsArr,
-        daily: daily
+        daily: daily,
+        dailyMode: dailyMode
       };
     }
 
@@ -412,16 +475,22 @@
       el.innerHTML = html;
     }
 
-    function renderDaily(rows){
+    function renderDaily(rows, mode){
       var el = document.getElementById("daily");
+      var hint = document.getElementById("dailyHint");
       if(!rows || !rows.length){ el.innerHTML = '<div class="empty">No data.</div>'; return; }
       var max = rows.reduce(function(m,r){ return Math.max(m, +r.sessioni||0); }, 0) || 1;
+      if (hint) hint.textContent = (mode === "week")
+        ? "New quiz sessions per week (long range)."
+        : "New quiz sessions per day over the selected window.";
       el.innerHTML = rows.map(function(r){
-        var h = Math.round(100 * (+r.sessioni||0) / max);
-        var dd = String(r.giorno).slice(8,10);
-        return '<div class="col" title="'+esc(r.giorno)+': '+(r.sessioni||0)+' sessions, '+(r.mail||0)+' emails">'
-             + '<div class="b" style="height:'+h+'%"></div><div class="d">'+dd+'</div></div>';
+        var v = +r.sessioni || 0;
+        var h = v > 0 ? Math.max(6, Math.round(100 * v / max)) : 0;   // 0 sessions = no bar
+        var tip = (mode === "week" ? "Week of " : "") + r.full + ": " + v + " sessions, " + (r.mail||0) + " emails";
+        return '<div class="col" title="'+esc(tip)+'">'
+             + '<div class="b" style="height:'+h+'%"></div><div class="d">'+esc(r.label)+'</div></div>';
       }).join("");
+      el.scrollLeft = el.scrollWidth;   // jump to most recent
     }
 
     function windowLabel(){
@@ -432,6 +501,7 @@
     function load(){
       document.getElementById("err").style.display = "none";
       document.getElementById("updated").textContent = "Loading " + windowLabel() + "…";
+      window.__truncated = 0;
       Promise.all([ fetchEvents("dash_events"), fetchEvents("dash_lead_events") ])
         .then(function(res){
           var a = aggregate(res[0] || [], res[1] || []);
@@ -441,9 +511,16 @@
           document.getElementById("segments").innerHTML = bars(a.segments, "segmento", "persone", "green");
           renderAnswers(a.answers);
           document.getElementById("leads").innerHTML    = bars(a.leads,    "stato",    "mail",    "green");
-          renderDaily(a.daily);
+          renderDaily(a.daily, a.dailyMode);
           document.getElementById("updated").textContent =
             windowLabel() + " · updated " + new Date().toLocaleString("en-US");
+          if (window.__truncated) {
+            var err = document.getElementById("err");
+            err.style.display = "block";
+            err.textContent = "Heads up: this window has more than " + HARD_CAP.toLocaleString()
+              + " events; showing the first " + HARD_CAP.toLocaleString()
+              + ". Narrow the date range for exact totals.";
+          }
         })
         .catch(function(e){
           var err = document.getElementById("err");
