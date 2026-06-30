@@ -8,17 +8,28 @@
   <style>
     :root{
       --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
-      --txt:#e8eaed; --muted:#9aa3b2; --accent:#dc3200; --green:#16a34a; --blue:#3b82f6;
+      --txt:#e8eaed; --muted:#9aa3b2; --accent:#dc3200; --green:#16a34a; --blue:#3b82f6; --amber:#f59e0b;
     }
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:"DM Sans",system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt);padding:24px;min-height:100vh}
     .wrap{max-width:1100px;margin:0 auto}
-    header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+    header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
     h1{font-size:22px;font-weight:700}
     h1 span{color:var(--accent)}
     .updated{font-size:13px;color:var(--muted)}
     button{font-family:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer}
     button:hover{border-color:var(--accent)}
+
+    /* date controls */
+    .controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:20px}
+    .presets{display:flex;gap:6px;flex-wrap:wrap}
+    .presets button{padding:7px 13px;font-size:13px}
+    .presets button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .custom{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .custom input[type=date]{font-family:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;color-scheme:dark}
+    .custom span{color:var(--muted);font-size:13px}
+    .custom #apply{padding:7px 13px;font-size:13px}
+
     .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
     .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
     .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
@@ -39,14 +50,29 @@
     .qgroup{margin-bottom:18px}
     .qgroup:last-child{margin-bottom:0}
     .qgroup .qtitle{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px;border-left:3px solid var(--accent);padding-left:8px}
-    .drop{font-size:12px;color:#f59e0b;font-weight:600}
     .empty{color:var(--muted);font-size:14px;padding:8px 0}
     .err{background:#3a1d1d;border:1px solid #5b2a2a;color:#fca5a5;border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:18px;display:none}
     .footnote{font-size:12px;color:var(--muted);margin-top:8px}
-    .daily{display:flex;align-items:flex-end;gap:6px;height:120px}
-    .daily .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+    .daily{display:flex;align-items:flex-end;gap:4px;height:120px;overflow-x:auto}
+    .daily .col{flex:1 0 10px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
     .daily .col .b{width:100%;background:var(--blue);border-radius:4px 4px 0 0;min-height:2px}
     .daily .col .d{font-size:10px;color:var(--muted)}
+
+    /* completion funnel */
+    .funnel .fstep{margin-bottom:6px}
+    .funnel .ftop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13.5px;margin-bottom:5px}
+    .funnel .flabel{font-weight:600}
+    .funnel .flabel .idx{color:var(--muted);font-weight:700;margin-right:6px;font-variant-numeric:tabular-nums}
+    .funnel .fcount{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+    .funnel .fcount b{color:var(--txt)}
+    .funnel .fbar{height:26px;background:var(--panel2);border-radius:8px;overflow:hidden}
+    .funnel .fbar > i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--accent),#ff6a3d)}
+    .funnel .fend .fbar > i{background:linear-gradient(90deg,#0f7a37,var(--green))}
+    .funnel .fpass{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:5px 0 9px 2px}
+    .funnel .fpass .ok{color:#86efac;font-weight:600}
+    .funnel .fpass .dp{color:var(--amber);font-weight:600}
+    .funnel .fend .ftop .fcount b{color:#86efac}
+
     .insight{background:linear-gradient(180deg,#1b1410,#171a21);border:1px solid #3a2a20}
     .insight .tag{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);border:1px solid #3a2a20;border-radius:6px;padding:2px 9px;margin-bottom:12px}
     .insight h2{color:var(--accent);margin-bottom:12px}
@@ -67,14 +93,30 @@
       <button id="refresh">&#8635; Refresh</button>
     </header>
 
+    <div class="controls">
+      <div class="presets" id="presets">
+        <button data-range="7">7 days</button>
+        <button data-range="14">14 days</button>
+        <button data-range="30">30 days</button>
+        <button data-range="90">90 days</button>
+        <button data-range="all" class="active">All time</button>
+      </div>
+      <div class="custom">
+        <input type="date" id="from" />
+        <span>&rarr;</span>
+        <input type="date" id="to" />
+        <button id="apply">Apply</button>
+      </div>
+    </div>
+
     <div class="err" id="err"></div>
 
     <div class="kpis" id="kpis"></div>
 
     <section>
-      <h2>Quiz funnel</h2>
-      <div class="hint">How many people reach each step and where they drop off. State pages count as a single step.</div>
-      <div id="funnel"><div class="empty">...</div></div>
+      <h2>Completion funnel &mdash; question by question</h2>
+      <div class="hint">Each bar = people who reached that question, in order. The line below each bar is the pass-through rate to the next step (and the drop). Last bar = reached checkout. State pages count as one step.</div>
+      <div class="funnel" id="funnel"><div class="empty">...</div></div>
     </section>
 
     <div class="grid2">
@@ -103,8 +145,8 @@
         <div id="leads"><div class="empty">...</div></div>
       </section>
       <section>
-        <h2>Last 14 days</h2>
-        <div class="hint">Quiz sessions per day.</div>
+        <h2>Sessions per day</h2>
+        <div class="hint">New quiz sessions over the selected window.</div>
         <div class="daily" id="daily"></div>
       </section>
     </div>
@@ -122,22 +164,152 @@
       <p class="kicker">Rule of thumb: read the biggest drop-off bar as a question &mdash; <i>what does she need to believe here that she doesn't yet?</i> &mdash; and write the next ad to that, not to the product.</p>
     </section>
 
-    <div class="footnote">Aggregated data, real time. Individual user emails are NOT shown here (they stay private on Supabase).</div>
+    <div class="footnote">Aggregated data, real time, for the selected window. Individual user emails are NOT shown here (they stay private on Supabase).</div>
   </div>
 
   <script>
     // ====== CONFIG ======
     var SUPABASE_URL = "https://ytzuiysqainppdzebhbg.supabase.co";
-    var SUPABASE_KEY = "sb_publishable_cRBas37A9sr74hNAl1KFNA_1btrrtTP"; // publishable, sola lettura aggregati
+    var SUPABASE_KEY = "sb_publishable_cRBas37A9sr74hNAl1KFNA_1btrrtTP"; // publishable, read-only on dash_* views
     var H = { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY };
 
-    function api(view, qs){
-      return fetch(SUPABASE_URL + "/rest/v1/" + view + "?select=*" + (qs ? "&" + qs : ""), { headers: H })
-        .then(function(r){ if(!r.ok) throw new Error(view + " -> " + r.status); return r.json(); });
-    }
-    function pct(n, max){ max = max || 1; return Math.max(2, Math.round(100 * n / max)); }
-    function esc(s){ return String(s == null ? "" : s).replace(/[<>&]/g, function(c){ return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]; }); }
+    // active window: null/null = all time
+    var state = { fromD: null, toD: null };
 
+    // ---------- utils ----------
+    function esc(s){ return String(s == null ? "" : s).replace(/[<>&]/g, function(c){ return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]; }); }
+    function pct(n, max){ max = max || 1; return Math.max(2, Math.min(100, Math.round(100 * n / max))); }
+    function isoDay(dt){ return dt.toISOString().slice(0, 10); }
+    function nDistinct(map){ return Object.keys(map).length; }
+
+    function rangeISO(){
+      var r = {};
+      if (state.fromD) r.from = state.fromD + "T00:00:00Z";
+      if (state.toD)   r.to   = state.toD + "T23:59:59.999Z";
+      return r;
+    }
+
+    // paginated fetch of an events view, filtered by created_at window
+    function fetchEvents(view){
+      var r = rangeISO();
+      var base = SUPABASE_URL + "/rest/v1/" + view + "?select=*&order=created_at.asc";
+      if (r.from) base += "&created_at=gte." + encodeURIComponent(r.from);
+      if (r.to)   base += "&created_at=lte." + encodeURIComponent(r.to);
+      var out = [], offset = 0, PAGE = 1000;
+      function next(){
+        return fetch(base + "&limit=" + PAGE + "&offset=" + offset, { headers: H })
+          .then(function(res){ if(!res.ok) throw new Error(view + " -> " + res.status); return res.json(); })
+          .then(function(rows){
+            out = out.concat(rows);
+            offset += PAGE;
+            if (rows.length === PAGE && offset <= 200000) return next();
+            return out;
+          });
+      }
+      return next();
+    }
+
+    // ---------- aggregation (all client-side, respects the window) ----------
+    function aggregate(events, leads){
+      var sess = {}, comp = {};
+      var steps = {}, states = {}, segs = {}, answers = {};
+      var firstDay = {}; // session_id -> earliest day
+
+      events.forEach(function(e){
+        if (e.session_id) {
+          sess[e.session_id] = 1;
+          var d = String(e.created_at).slice(0,10);
+          if (!firstDay[e.session_id] || d < firstDay[e.session_id]) firstDay[e.session_id] = d;
+        }
+        if (e.event_type === "complete" && e.session_id) comp[e.session_id] = 1;
+
+        if ((e.event_type === "answer" || e.event_type === "state" || e.event_type === "step") && e.step_key) {
+          var s = steps[e.step_key] || (steps[e.step_key] = { label: e.step_label || e.step_key, pctSum:0, pctN:0, ppl:{} });
+          if (e.step_label) s.label = e.step_label;
+          if (e.step_pct != null) { s.pctSum += (+e.step_pct); s.pctN++; }
+          if (e.session_id) s.ppl[e.session_id] = 1;
+        }
+        if (e.event_type === "state" && e.quiz_state) {
+          var st = states[e.quiz_state] || (states[e.quiz_state] = {});
+          if (e.session_id) st[e.session_id] = 1;
+        }
+        if (e.event_type === "complete") {
+          var key = e.result || "n/d";
+          var g = segs[key] || (segs[key] = {});
+          if (e.session_id) g[e.session_id] = 1;
+        }
+        if (e.event_type === "answer") {
+          var sk = e.step_key || "?";
+          var lab = e.answer_label || e.answer_value || "(n/d)";
+          var ag = answers[sk] || (answers[sk] = { label: e.step_label || sk, ord: 999, rows: {} });
+          if (e.step_label) ag.label = e.step_label;
+          if (e.step_pct != null) ag.ord = Math.min(ag.ord, +e.step_pct);
+          ag.rows[lab] = (ag.rows[lab] || 0) + 1;
+        }
+      });
+
+      // ordered step funnel
+      var stepArr = Object.keys(steps).map(function(k){
+        var s = steps[k];
+        return { key:k, label:s.label, ordine: s.pctN ? s.pctSum/s.pctN : 999, persone: nDistinct(s.ppl) };
+      }).sort(function(a,b){ return a.ordine - b.ordine; });
+
+      var statesArr = Object.keys(states).map(function(k){ return { stato:k, persone: nDistinct(states[k]) }; })
+                        .sort(function(a,b){ return b.persone - a.persone; });
+      var segsArr = Object.keys(segs).map(function(k){ return { segmento:k, persone: nDistinct(segs[k]) }; })
+                      .sort(function(a,b){ return b.persone - a.persone; });
+      var answersArr = Object.keys(answers).map(function(k){
+        var a = answers[k];
+        var rows = Object.keys(a.rows).map(function(r){ return { risposta:r, scelte:a.rows[r] }; })
+                     .sort(function(x,y){ return y.scelte - x.scelte; });
+        return { step_key:k, label:a.label, ord:a.ord, rows:rows };
+      }).sort(function(a,b){ return a.ord - b.ord; });
+
+      // leads
+      var leadSess = {}, leadByState = {}, mailDay = {};
+      (leads||[]).forEach(function(l){
+        if (l.session_id) leadSess[l.session_id] = 1;
+        var k = l.quiz_state || "n/d";
+        leadByState[k] = (leadByState[k] || 0) + 1;
+        var d = String(l.created_at).slice(0,10);
+        mailDay[d] = (mailDay[d] || 0) + 1;
+      });
+      var leadsArr = Object.keys(leadByState).map(function(k){ return { stato:k, mail: leadByState[k] }; })
+                       .sort(function(a,b){ return b.mail - a.mail; });
+
+      // daily axis (selected window, or last 30d when "all")
+      var startD, endD;
+      if (state.fromD && state.toD) { startD = state.fromD; endD = state.toD; }
+      else {
+        var now = new Date();
+        endD = isoDay(now);
+        startD = isoDay(new Date(now.getTime() - 29*86400000));
+      }
+      var sessDay = {};
+      Object.keys(firstDay).forEach(function(sid){ var d = firstDay[sid]; sessDay[d] = (sessDay[d]||0)+1; });
+      var daily = [];
+      var cur = new Date(startD + "T00:00:00Z"), end = new Date(endD + "T00:00:00Z");
+      var guard = 0;
+      while (cur <= end && guard < 400) {
+        var d = isoDay(cur);
+        daily.push({ giorno:d, sessioni: sessDay[d]||0, mail: mailDay[d]||0 });
+        cur = new Date(cur.getTime() + 86400000); guard++;
+      }
+
+      return {
+        sessioni: nDistinct(sess),
+        completati: nDistinct(comp),
+        mail: nDistinct(leadSess),
+        stepArr: stepArr,
+        states: statesArr,
+        segments: segsArr,
+        answers: answersArr,
+        leads: leadsArr,
+        daily: daily
+      };
+    }
+
+    // ---------- renderers ----------
     function bars(rows, labelKey, valKey, color){
       if(!rows || !rows.length) return '<div class="empty">No data yet.</div>';
       var max = rows.reduce(function(m,r){ return Math.max(m, +r[valKey]||0); }, 0) || 1;
@@ -148,42 +320,51 @@
       }).join("");
     }
 
-    function renderKpis(o){
-      o = o || {};
-      var compRate = o.sessioni ? Math.round(100 * o.completati / o.sessioni) : 0;
+    function renderKpis(a){
+      var compRate = a.sessioni ? Math.round(100 * a.completati / a.sessioni) : 0;
       var cards = [
-        { label:"Quiz sessions", value:o.sessioni||0, sub:(o.sessioni_7g||0)+" in the last 7d" },
-        { label:"Completion", value:compRate+"%", sub:(o.completati||0)+" reached checkout" },
-        { label:"Emails captured", value:o.mail_raccolte||0, sub:(o.mail_7g||0)+" in the last 7d" }
+        { label:"Quiz sessions",   value:a.sessioni||0,  sub:"in the selected window" },
+        { label:"Completion",      value:compRate+"%",   sub:(a.completati||0)+" reached checkout" },
+        { label:"Emails captured", value:a.mail||0,      sub:"in the selected window" }
       ];
       document.getElementById("kpis").innerHTML = cards.map(function(c){
         return '<div class="kpi"><div class="label">'+c.label+'</div><div class="value">'+c.value+'</div><div class="sub">'+c.sub+'</div></div>';
       }).join("");
     }
 
-    function renderFunnel(rows){
+    function renderFunnel(stepArr, completati){
       var el = document.getElementById("funnel");
-      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
-      var max = rows.reduce(function(m,r){ return Math.max(m, +r.persone||0); }, 0) || 1;
-      el.innerHTML = rows.map(function(r){
-        var v = +r.persone||0;
-        var drop = (r.drop_pct != null) ? ' <span class="drop">-'+r.drop_pct+'%</span>' : '';
-        return '<div class="row"><div class="top"><span>'+esc(r.step_label || r.step_key)+drop+'</span><span class="n">'+v+'</span></div>'
-             + '<div class="bar"><i style="width:'+pct(v,max)+'%"></i></div></div>';
+      var nodes = stepArr.map(function(s){ return { label:s.label, persone:s.persone, end:false }; });
+      nodes.push({ label:"Completed (checkout)", persone: completati||0, end:true });
+      // base = people who reached the first question
+      var base = nodes.length ? (nodes[0].persone || 0) : 0;
+      if (!base) { el.innerHTML = '<div class="empty">No data yet for this window.</div>'; return; }
+
+      el.innerHTML = nodes.map(function(n, i){
+        var ofStart = Math.round(100 * n.persone / base);
+        var width = Math.max(2, Math.min(100, ofStart));
+        var pass = "";
+        if (i < nodes.length - 1) {
+          var nextN = nodes[i+1].persone || 0;
+          var passPct = n.persone ? Math.round(100 * nextN / n.persone) : 0;
+          var drop = Math.max(0, 100 - passPct);
+          pass = '<div class="fpass"><span class="ok">&#8627; '+passPct+'% continue</span>'
+               + (drop > 0 ? '<span>&middot;</span><span class="dp">'+drop+'% drop</span>' : '')
+               + '</div>';
+        }
+        var idx = n.end ? '&#10003;' : (i+1);
+        return '<div class="fstep'+(n.end?' fend':'')+'">'
+             +   '<div class="ftop"><span class="flabel"><span class="idx">'+idx+'</span>'+esc(n.label)+'</span>'
+             +     '<span class="fcount"><b>'+n.persone+'</b> &middot; '+ofStart+'% of start</span></div>'
+             +   '<div class="fbar"><i style="width:'+width+'%"></i></div>'
+             + '</div>' + pass;
       }).join("");
     }
 
-    function renderAnswers(rows){
+    function renderAnswers(answersArr){
       var el = document.getElementById("answers");
-      if(!rows || !rows.length){ el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
-      var groups = {}, order = [];
-      rows.forEach(function(r){
-        var k = r.step_key || "?";
-        if(!groups[k]){ groups[k] = { label: r.step_label || k, rows: [] }; order.push(k); }
-        groups[k].rows.push(r);
-      });
-      el.innerHTML = order.map(function(k){
-        var g = groups[k];
+      if(!answersArr || !answersArr.length){ el.innerHTML = '<div class="empty">No data yet.</div>'; return; }
+      el.innerHTML = answersArr.map(function(g){
         return '<div class="qgroup"><div class="qtitle">'+esc(g.label)+'</div>'+bars(g.rows, "risposta", "scelte")+'</div>';
       }).join("");
     }
@@ -200,35 +381,71 @@
       }).join("");
     }
 
-    function load(){
-      document.getElementById("err").style.display = "none";
-      Promise.all([
-        api("dash_overview"),
-        api("dash_steps", "order=ordine.asc"),
-        api("dash_answers"),
-        api("dash_states", "order=persone.desc&limit=15"),
-        api("dash_segments", "order=persone.desc"),
-        api("dash_leads_by_state", "order=mail.desc&limit=15"),
-        api("dash_daily", "order=giorno.asc")
-      ]).then(function(res){
-        renderKpis((res[0]||[])[0]);
-        renderFunnel(res[1]);
-        renderAnswers(res[2]);
-        document.getElementById("states").innerHTML   = bars(res[3], "stato", "persone", "blue");
-        document.getElementById("segments").innerHTML = bars(res[4], "segmento", "persone", "green");
-        document.getElementById("leads").innerHTML    = bars(res[5], "stato", "mail", "green");
-        renderDaily(res[6]);
-        document.getElementById("updated").textContent = "Updated: " + new Date().toLocaleString("en-US");
-      }).catch(function(e){
-        var err = document.getElementById("err");
-        err.style.display = "block";
-        err.textContent = "Error loading data: " + e.message + ". Did you run 09-setup-dashboard-COMPLETO.sql on Supabase?";
-        document.getElementById("updated").textContent = "Error";
-      });
+    function windowLabel(){
+      if (state.fromD && state.toD) return state.fromD + " → " + state.toD;
+      return "All time";
     }
 
+    function load(){
+      document.getElementById("err").style.display = "none";
+      document.getElementById("updated").textContent = "Loading " + windowLabel() + "…";
+      Promise.all([ fetchEvents("dash_events"), fetchEvents("dash_lead_events") ])
+        .then(function(res){
+          var a = aggregate(res[0] || [], res[1] || []);
+          renderKpis(a);
+          renderFunnel(a.stepArr, a.completati);
+          document.getElementById("states").innerHTML   = bars(a.states,   "stato",    "persone", "blue");
+          document.getElementById("segments").innerHTML = bars(a.segments, "segmento", "persone", "green");
+          renderAnswers(a.answers);
+          document.getElementById("leads").innerHTML    = bars(a.leads,    "stato",    "mail",    "green");
+          renderDaily(a.daily);
+          document.getElementById("updated").textContent =
+            windowLabel() + " · updated " + new Date().toLocaleString("en-US");
+        })
+        .catch(function(e){
+          var err = document.getElementById("err");
+          err.style.display = "block";
+          err.textContent = "Error loading data: " + e.message + ". Did you run 09-setup-dashboard-COMPLETO.sql on Supabase?";
+          document.getElementById("updated").textContent = "Error";
+        });
+    }
+
+    // ---------- date controls ----------
+    function setActivePreset(val){
+      var btns = document.querySelectorAll("#presets button");
+      for (var i=0;i<btns.length;i++){
+        btns[i].classList.toggle("active", btns[i].getAttribute("data-range") === val);
+      }
+    }
+    function applyPreset(val){
+      if (val === "all") { state.fromD = null; state.toD = null; }
+      else {
+        var n = parseInt(val, 10);
+        var now = new Date();
+        state.toD = isoDay(now);
+        state.fromD = isoDay(new Date(now.getTime() - (n-1)*86400000));
+      }
+      document.getElementById("from").value = state.fromD || "";
+      document.getElementById("to").value   = state.toD || "";
+      setActivePreset(val);
+      load();
+    }
+
+    document.getElementById("presets").addEventListener("click", function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      applyPreset(b.getAttribute("data-range"));
+    });
+    document.getElementById("apply").addEventListener("click", function(){
+      var f = document.getElementById("from").value, t = document.getElementById("to").value;
+      if (!f && !t) { applyPreset("all"); return; }
+      state.fromD = f || null;
+      state.toD   = t || null;
+      setActivePreset("");           // custom range = no preset highlighted
+      load();
+    });
     document.getElementById("refresh").addEventListener("click", load);
-    load();
+
+    load();   // initial: All time
   </script>
 </body>
 </html>
